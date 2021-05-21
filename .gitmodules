@@ -1,0 +1,4 @@
+[submodule "lib/matrix-nio"]
+	path = lib/matrix-nio
+	url = https://github.com/SpiritCroc/matrix-nio.git
+	branch = spaces
