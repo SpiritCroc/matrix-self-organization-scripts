@@ -12,6 +12,7 @@ from mnio.event_builders import AddSpaceChildBuilder
 from mnio.responses import RoomGetStateEventResponse
 
 
+
 VERBOSE = True
 
 class PlannedSpaceAdd:
@@ -76,6 +77,7 @@ async def exec_space_manage(strategy, homeserver, mxid, passwd, script_device_id
     # Process rooms
     planned_additions = []
     planned_removals = []
+    await build_room_space_cache(client, spaces) # TODO
     for room in client.rooms.values():
         pa, pr = await handle_room(client, room, spaces, strategy, mxid)
         planned_additions += pa
@@ -97,18 +99,59 @@ async def exec_space_manage(strategy, homeserver, mxid, passwd, script_device_id
     await client.logout()
     await client.close()
 
+
+room_space_cache = dict()
+
+async def build_room_space_cache(client, space_list):
+    # TODO update cache on state events
+    global room_space_cache
+    for space in space_list:
+        result = await client.room_get_state(room_id = space.room_id)
+        for event in result.events:
+            try:
+                if event['type'] == "m.space.child":
+                    room_id = event['state_key']
+                    content = event['content']
+                    if content != None:
+                        #if VERBOSE: print(f"Room {room_id} is in space {space.room_id}")
+                        if room_id in room_space_cache:
+                            room_space_cache[room_id].append(space)
+                        else:
+                            room_space_cache[room_id] = [space]
+                    # Some testing code to compare with previous check
+                    #legacy = await is_room_in_space(client, space, room_id)
+                    #if legacy and content != None:
+                    #    print(f"MATCH {room_id} in {space.room_id}")
+                    #elif content == None and not legacy:
+                    #    print(f"NO MATCH {room_id} in {space.room_id}")
+                    #else:
+                    #    print(f"OH NOES!!!!! {room_id} in {space.room_id} {legacy} {content}")
+            except KeyError as e:
+                continue
+
 async def get_space_from_list(space_list, space_id):
     for space in space_list:
         if space_id == space.room_id:
             return space
     raise RuntimeError(f"Did not find space with id {space_id}")
 
-async def get_space_list_for_room(client, all_spaces, room):
-    result = []
-    for space in all_spaces:
-        if await is_room_in_space(client, space, room):
-            result.append(space)
-    return result
+async def get_space_list_for_room(client, all_spaces, room, use_cache=True):
+    global room_space_cache
+    if use_cache:
+        if isinstance(room, str):
+            room_id = room
+        else:
+            room_id = room.room_id
+        if room_id in room_space_cache:
+            return room_space_cache[room_id]
+        else:
+            return []
+    else:
+        result = []
+        for space in all_spaces:
+            if await is_room_in_space(client, space, room):
+                result.append(space)
+        return result
 
 async def is_room_in_space(client, space, room):
     if isinstance(space, str):
