@@ -30,6 +30,37 @@ class SpaceStrategy:
     def get_via_for_room(self, room):
         raise NotImplementedError()
 
+async def handle_room(client, room, spaces, strategy, mxid):
+    planned_additions = []
+    planned_removals = []
+    if room.room_type == "m.space" or room.room_type == "org.matrix.msc1772.space":
+        # Do not automatically add spaces to spaces
+        return [], []
+    room_id = room.room_id
+    room_name = room.display_name
+    myroomnick = room.user_name(mxid)
+    myavatarurl = room.avatar_url(mxid)
+    member_response = await client.joined_members(room_id = room_id)
+    members = member_response.members
+    spaces_for_room = await get_space_list_for_room(client, spaces, room)
+    if len(spaces_for_room) > 0:
+        print(f"{room_name} is in following spaces:")
+        for space in spaces_for_room:
+            print(f"- {space.display_name}")
+    old_spaces_for_room = spaces_for_room.copy()
+    new_spaces_for_room = strategy.get_new_spaces(myroomnick, myavatarurl, room, members, old_spaces_for_room)
+    for candidate in new_spaces_for_room:
+        if isinstance(candidate, str):
+            candidate = await get_space_from_list(spaces, candidate)
+        if candidate not in old_spaces_for_room:
+            planned_additions.append(PlannedSpaceAdd(candidate, room))
+    for candidate in old_spaces_for_room:
+        if isinstance(candidate, str):
+            candidate = await get_space_from_list(spaces, candidate)
+        if candidate not in new_spaces_for_room:
+            planned_removals.append(PlannedSpaceRemove(candidate, room))
+    return planned_additions, planned_removals
+
 async def exec_space_manage(strategy, homeserver, mxid, passwd, script_device_id):
     client = AsyncClient(homeserver, mxid, script_device_id)
     await client.login(passwd)
@@ -46,32 +77,9 @@ async def exec_space_manage(strategy, homeserver, mxid, passwd, script_device_id
     planned_additions = []
     planned_removals = []
     for room in client.rooms.values():
-        if room.room_type == "m.space" or room.room_type == "org.matrix.msc1772.space":
-            # Do not automatically add spaces to spaces
-            continue
-        room_id = room.room_id
-        room_name = room.display_name
-        myroomnick = room.user_name(mxid)
-        myavatarurl = room.avatar_url(mxid)
-        member_response = await client.joined_members(room_id = room_id)
-        members = member_response.members
-        spaces_for_room = await get_space_list_for_room(client, spaces, room)
-        if len(spaces_for_room) > 0:
-            print(f"{room_name} is in following spaces:")
-            for space in spaces_for_room:
-                print(f"- {space.display_name}")
-        old_spaces_for_room = spaces_for_room.copy()
-        new_spaces_for_room = strategy.get_new_spaces(myroomnick, myavatarurl, room, members, old_spaces_for_room)
-        for candidate in new_spaces_for_room:
-            if isinstance(candidate, str):
-                candidate = await get_space_from_list(spaces, candidate)
-            if candidate not in old_spaces_for_room:
-                planned_additions.append(PlannedSpaceAdd(candidate, room))
-        for candidate in old_spaces_for_room:
-            if isinstance(candidate, str):
-                candidate = await get_space_from_list(spaces, candidate)
-            if candidate not in new_spaces_for_room:
-                planned_removals.append(PlannedSpaceRemove(candidate, room))
+        pa, pr = await handle_room(client, room, spaces, strategy, mxid)
+        planned_additions += pa
+        planned_removals += pr
 
     print("-"*42)
     print("Planned additions:")
