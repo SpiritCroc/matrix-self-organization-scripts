@@ -3,6 +3,7 @@
 import asyncio
 import getpass
 from colorama import Fore, Style
+import sys
 
 from .util import add_lib_path
 
@@ -14,7 +15,7 @@ from mnio import RoomMemberEvent, SpaceChildEvent
 
 
 
-VERBOSE = True
+VERBOSE = sys.stdout.isatty()
 
 class PlannedSpaceAdd:
     def __init__(self, space, room):
@@ -58,12 +59,13 @@ class RoomSpaceController:
         member_response = await self.client.joined_members(room_id = room_id)
         members = member_response.members
         spaces_for_room = await self.get_space_list_for_room(room)
-        if len(spaces_for_room) > 0:
-            print(f"{room_name} is in following spaces:")
-            for space in spaces_for_room:
-                print(f"- {space.display_name}")
-        else:
-            print(f"{room_name} is in no spaces.")
+        if VERBOSE:
+            if len(spaces_for_room) > 0:
+                print(f"{room_name} is in following spaces:")
+                for space in spaces_for_room:
+                    print(f"- {space.display_name}")
+            else:
+                print(f"{room_name} is in no spaces.")
         old_spaces_for_room = spaces_for_room.copy()
         new_spaces_for_room = self.strategy.get_new_spaces(myroomnick, myavatarurl, room, members, old_spaces_for_room)
         # For comparison what changed, use room ids
@@ -173,7 +175,8 @@ class RoomSpaceController:
         self.spaces_cache = []
         for room in self.client.rooms.values():
             if room.room_type == "m.space":
-                print(f"Found space {room.room_id} {room.display_name}")
+                if VERBOSE:
+                    print(f"Found space {room.room_id} {room.display_name}")
                 self.spaces_cache.append(room)
         # Rooms in selected spaces
         for space in self.spaces_cache:
@@ -186,9 +189,11 @@ class RoomSpaceController:
 
     async def handle_room_update(self, room, event):
         if room.room_type == "m.space" and room not in self.spaces_cache:
-            print(f"NEW SPACE {room}")
+            if VERBOSE:
+                print(f"NEW SPACE {room}")
             self.spaces_cache.append(room)
-        print(f"ROOM EVENT {event}")
+        if VERBOSE:
+            print(f"ROOM EVENT {event}")
         planned_additions, planned_removals = await self.handle_room(room)
         print("-"*42)
         await self.print_planned_changes(planned_additions, planned_removals)
@@ -196,11 +201,11 @@ class RoomSpaceController:
         await self.exec_planned_changes(planned_additions, planned_removals)
 
     async def handle_space_update(self, space, event):
-        print(f"SPACE EVENT {event}") # TODO try catch
+        if VERBOSE:
+            print(f"SPACE EVENT {event}")
         # Update cache
         room_id = event.state_key
         content = event.content
-        print(f"{content}") # TODO
         if content != None and len(content) > 0:
             # room_id added to space
             if room_id in self.room_space_cache:
