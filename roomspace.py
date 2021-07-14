@@ -92,41 +92,49 @@ class RoomSpaceController:
                 await self.remove_room_from_space(pa.space, pa.room)
 
     async def exec_space_manage(self):
-        self.client = AsyncClient(self.homeserver, self.mxid, self.script_device_id)
-        await self.client.login(self.passwd)
-        print("Fetching rooms...")
-        # Sync fetches rooms
-        await self.client.sync()
-        # Collect and categorize spaces and rooms
-        await self.build_room_space_cache()
-        # Process rooms
-        planned_additions = []
-        planned_removals = []
+        try:
+            self.client = AsyncClient(self.homeserver, self.mxid, self.script_device_id)
+            await self.client.login(self.passwd)
+            print("Fetching rooms...")
+            # Sync fetches rooms
+            await self.client.sync()
+            # Collect and categorize spaces and rooms
+            await self.build_room_space_cache()
+            # Process rooms
+            planned_additions = []
+            planned_removals = []
 
-        if True: # TODO parameter
-            print("Doing initial space management for all rooms...")
-            for room in self.client.rooms.values():
-                pa, pr = await self.handle_room(room)
-                planned_additions += pa
-                planned_removals += pr
+            if True: # TODO parameter
+                print("Doing initial space management for all rooms...")
+                for room in self.client.rooms.values():
+                    pa, pr = await self.handle_room(room)
+                    planned_additions += pa
+                    planned_removals += pr
 
-            print("-"*42)
-            await self.print_planned_changes(planned_additions, planned_removals)
-            print("-"*42)
-            input("Enter to execute")
-            await self.exec_planned_changes(planned_additions, planned_removals)
+                print("-"*42)
+                await self.print_planned_changes(planned_additions, planned_removals)
+                print("-"*42)
+                input("Enter to execute")
+                await self.exec_planned_changes(planned_additions, planned_removals)
 
-        if True: # TODO parameter
-            print("Start listening to room/space changes to update affected rooms only...")
-            # Listen to room member events: these are sent on room joins, and some spaces might depend on joined members as well,
-            # so recategorize rooms on member events.
-            self.client.add_event_callback(self.handle_room_update, (RoomMemberEvent,))
-            # We need to update our room/space cache on space changes. Also, we want to do a room update after that as well.
-            self.client.add_event_callback(self.handle_space_update, (SpaceChildEvent,))
-            await self.client.sync_forever(timeout=30000, full_state=True)
+            if True: # TODO parameter
+                print("Start listening to room/space changes to update affected rooms only...")
+                # Listen to room member events: these are sent on room joins, and some spaces might depend on joined members as well,
+                # so recategorize rooms on member events.
+                self.client.add_event_callback(self.handle_room_update, (RoomMemberEvent,))
+                # We need to update our room/space cache on space changes. Also, we want to do a room update after that as well.
+                self.client.add_event_callback(self.handle_space_update, (SpaceChildEvent,))
+                await self.client.sync_forever(timeout=30000, full_state=True)
 
-        await self.client.logout()
-        await self.client.close()
+        finally:
+            try:
+                await self.client.logout()
+            except:
+                pass
+            try:
+                await self.client.close()
+            except:
+                pass
 
     async def get_room_list_for_space(self, space):
         room_list = []
