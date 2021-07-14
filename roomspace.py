@@ -93,7 +93,7 @@ class RoomSpaceController:
             for pa in planned_removals:
                 await self.remove_room_from_space(pa.space, pa.room)
 
-    async def exec_space_manage(self):
+    async def exec_space_manage(self, initial = True, ongoing = False):
         try:
             self.client = AsyncClient(self.homeserver, self.mxid, self.script_device_id)
             if self.token == None:
@@ -111,7 +111,7 @@ class RoomSpaceController:
             planned_additions = []
             planned_removals = []
 
-            if True: # TODO parameter
+            if initial:
                 print("Doing initial space management for all rooms...")
                 for room in self.client.rooms.values():
                     pa, pr = await self.handle_room(room)
@@ -121,10 +121,11 @@ class RoomSpaceController:
                 print("-"*42)
                 await self.print_planned_changes(planned_additions, planned_removals)
                 print("-"*42)
-                input("Enter to execute")
+                if not ongoing:
+                    input("Enter to execute")
                 await self.exec_planned_changes(planned_additions, planned_removals)
 
-            if True: # TODO parameter
+            if ongoing:
                 print("Start listening to room/space changes to update affected rooms only...")
                 # Listen to room member events: these are sent on room joins, and some spaces might depend on joined members as well,
                 # so recategorize rooms on member events.
@@ -308,6 +309,6 @@ class RoomSpaceController:
             state_key = event_dict["state_key"]
         )
 
-def space_manage(strategy, homeserver, mxid, passwd = None, script_device_id = "RS-SCRIPT", device_name = "", token = None):
+def space_manage(strategy, homeserver, mxid, passwd = None, script_device_id = "RS-SCRIPT", device_name = "", token = None, initial = True, ongoing = False):
     rsc = RoomSpaceController(strategy, homeserver, mxid, passwd = passwd, script_device_id = script_device_id, device_name = device_name, token = token)
-    asyncio.get_event_loop().run_until_complete(rsc.exec_space_manage())
+    asyncio.get_event_loop().run_until_complete(rsc.exec_space_manage(initial = initial, ongoing = ongoing))
