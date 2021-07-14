@@ -33,12 +33,14 @@ class SpaceStrategy:
         raise NotImplementedError()
 
 class RoomSpaceController:
-    def __init__(self, strategy, homeserver, mxid, passwd, script_device_id):
+    def __init__(self, strategy, homeserver, mxid, passwd = None, script_device_id = "RS-SCRIPT", device_name = "", token = None):
         self.strategy = strategy
         self.homeserver = homeserver
         self.mxid = mxid
         self.passwd = passwd
         self.script_device_id = script_device_id
+        self.device_name = device_name
+        self.token = token
         self.client = None
         self.room_space_cache = dict()
         self.spaces_cache = []
@@ -94,7 +96,12 @@ class RoomSpaceController:
     async def exec_space_manage(self):
         try:
             self.client = AsyncClient(self.homeserver, self.mxid, self.script_device_id)
-            await self.client.login(self.passwd)
+            if self.token == None:
+                await self.client.login(password = self.passwd, device_name = self.device_name, token = self.token)
+            else:
+                self.client.access_token = self.token
+                self.client.user_id = self.mxid
+                self.client.device_id = self.script_device_id
             print("Fetching rooms...")
             # Sync fetches rooms
             await self.client.sync()
@@ -127,10 +134,11 @@ class RoomSpaceController:
                 await self.client.sync_forever(timeout=30000, full_state=True)
 
         finally:
-            try:
-                await self.client.logout()
-            except:
-                pass
+            if self.token == None:
+                try:
+                    await self.client.logout()
+                except:
+                    pass
             try:
                 await self.client.close()
             except:
@@ -300,6 +308,6 @@ class RoomSpaceController:
             state_key = event_dict["state_key"]
         )
 
-def space_manage(strategy, homeserver, mxid, passwd, script_device_id = "SCRIPT"):
-    rsc = RoomSpaceController(strategy, homeserver, mxid, passwd, script_device_id)
+def space_manage(strategy, homeserver, mxid, passwd = None, script_device_id = "RS-SCRIPT", device_name = "", token = None):
+    rsc = RoomSpaceController(strategy, homeserver, mxid, passwd = passwd, script_device_id = script_device_id, device_name = device_name, token = token)
     asyncio.get_event_loop().run_until_complete(rsc.exec_space_manage())
