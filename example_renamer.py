@@ -7,6 +7,7 @@
 # strategies that match your use-case.
 #
 
+import asyncio
 import getpass
 from renamer import rename, KeepUnknownStrategy
 
@@ -62,7 +63,7 @@ class SeppStrategy(KeepUnknownStrategy):
         # If you do not need this restriction, you can inherit from renamer.Strategy directly.
         super().__init__(MANAGED_DISPLAY_NAMES, MANAGED_AVATARS)
 
-    def get_new_name_and_avatar(self, myroomnick, myavatarurl, room, all_members):
+    async def get_new_name_and_avatar(self, client, myroomnick, myavatarurl, room, all_members):
         # Implement your own logic here, that chooses a name and avatar for a given room!
 
         # Filter relevant room members

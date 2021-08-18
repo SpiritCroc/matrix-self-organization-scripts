@@ -28,7 +28,7 @@ class PlannedSpaceRemove:
         self.room = room
 
 class SpaceStrategy:
-    def get_new_spaces(self, myroomnick, myavatarurl, room, members, previous_spaces):
+    async def get_new_spaces(self, client, myroomnick, myavatarurl, room, members, previous_spaces):
         return []
     def get_via_for_room(self, room):
         raise NotImplementedError()
@@ -67,7 +67,7 @@ class RoomSpaceController:
             else:
                 print(f"{room_name} is in no spaces.")
         old_spaces_for_room = spaces_for_room.copy()
-        new_spaces_for_room = self.strategy.get_new_spaces(myroomnick, myavatarurl, room, members, old_spaces_for_room)
+        new_spaces_for_room = await self.strategy.get_new_spaces(self.client, myroomnick, myavatarurl, room, members, old_spaces_for_room)
         # For comparison what changed, use room ids
         old_spaces_for_room = [space.room_id for space in spaces_for_room]
         new_spaces_for_room = [space if isinstance(space, str) else space.room_id for space in new_spaces_for_room]

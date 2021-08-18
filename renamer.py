@@ -22,7 +22,7 @@ class Strategy:
         return True
     def avatar_change_allowed(self, myroomnick, myavatarurl):
         return True
-    def get_new_name_and_avatar(self, myroomnick, myavatarurl, room, members):
+    async def get_new_name_and_avatar(self, client, myroomnick, myavatarurl, room, members):
         return myroomnick, myavatarurl
 
 class KeepUnknownStrategy(Strategy):
@@ -53,7 +53,7 @@ async def exec_rename(strategy, homeserver, mxid, passwd, script_device_id):
             continue
         member_response = await client.joined_members(room_id = room_id)
         members = member_response.members
-        new_name, new_avatar = strategy.get_new_name_and_avatar(myroomnick, myavatarurl, room, members)
+        new_name, new_avatar = await strategy.get_new_name_and_avatar(client, myroomnick, myavatarurl, room, members)
         if not nick_change_allowed:
             new_name = myroomnick
         if not avatar_change_allowed:
