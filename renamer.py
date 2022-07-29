@@ -3,6 +3,10 @@
 import asyncio
 import getpass
 from colorama import Fore, Style
+
+from .util import add_lib_path
+
+add_lib_path("lib/matrix-nio")
 from nio import AsyncClient, MatrixRoom, RoomGetStateEventError
 
 
