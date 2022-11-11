@@ -106,7 +106,7 @@ class RoomSpaceController:
                 self.client.device_id = self.script_device_id
             print("Fetching rooms...")
             # Sync fetches rooms
-            await self.client.sync()
+            await self.client.sync(set_presence="offline")
             # Collect and categorize spaces and rooms
             await self.build_room_space_cache()
             # Process rooms
@@ -134,7 +134,7 @@ class RoomSpaceController:
                 self.client.add_event_callback(self.handle_room_update, (RoomMemberEvent,))
                 # We need to update our room/space cache on space changes. Also, we want to do a room update after that as well.
                 self.client.add_event_callback(self.handle_space_update, (SpaceChildEvent,))
-                await self.client.sync_forever(timeout=30000, full_state=True)
+                await self.client.sync_forever(timeout=30000, full_state=True, set_presence="offline")
 
         finally:
             if self.token == None:
