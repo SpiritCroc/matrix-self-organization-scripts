@@ -38,12 +38,17 @@ class KeepUnknownStrategy(Strategy):
     def avatar_change_allowed(self, myroomnick, myavatarurl):
         return myavatarurl in self.known_avatars
 
-async def exec_rename(strategy, homeserver, mxid, passwd, script_device_id):
+async def exec_rename(strategy, homeserver, mxid, passwd = None, script_device_id = "RN-SCRIPT", device_name = "", token = None):
     client = AsyncClient(homeserver, mxid, script_device_id)
-    await client.login(passwd)
+    if token == None:
+        await client.login(password = passwd, device_name = device_name, token = token)
+    else:
+        client.access_token = token
+        client.user_id = mxid
+        client.device_id = script_device_id
     print("Fetching rooms...")
     # Sync fetches rooms
-    await client.sync()
+    await client.sync(set_presence="offline")
     planned_renames = []
     for room in client.rooms.values():
         room_id = room.room_id
@@ -95,8 +100,9 @@ async def exec_rename(strategy, homeserver, mxid, passwd, script_device_id):
         result = await client.room_put_state(room_id = room_id, event_type = "m.room.member", content = content, state_key = mxid)
         if VERBOSE:
             print(result)
-    await client.logout()
+    if token != None:
+        await client.logout()
     await client.close()
 
-def rename(strategy, homeserver, mxid, passwd, script_device_id = "SCRIPT"):
-    asyncio.get_event_loop().run_until_complete(exec_rename(strategy, homeserver, mxid, passwd, script_device_id))
+def rename(strategy, homeserver, mxid, passwd = None, script_device_id = "RN-SCRIPT", device_name = "", token = None):
+    asyncio.get_event_loop().run_until_complete(exec_rename(strategy, homeserver, mxid, passwd, script_device_id, device_name, token))
